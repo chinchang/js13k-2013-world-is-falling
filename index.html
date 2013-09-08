@@ -1,0 +1,334 @@
+<html>
+<head>
+<style>
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+    }
+
+    body {
+        font-size: 16px;
+        font-family: Arial;
+        color: #555;
+    }
+
+    input {
+        border: 1px solid #CCC;
+        padding: 12px;
+        width: 550px;
+        font-size: 18px;
+    }
+
+    .btn {
+        background: #8DBB3C;
+        color: white;
+        width: 100%;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        border: none;
+        padding: 15px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .btn:hover {
+        opacity: 0.8;
+    }
+
+    .game-box {
+        text-align: center;
+    }
+
+    .logs {
+        font-size: 12px;
+    }
+    
+    canvas {
+        border: 1px solid #DDD;
+    }
+</style>
+<script src="http://world-is-falling.cloudno.de:9362/socket.io/socket.io.js"></script>
+<!--<script src="http://localhost:7000/socket.io/socket.io.js"></script>-->
+</head>
+
+<body>
+
+<div class="game-box">
+    <canvas id="c" width="550" height="300"></canvas>
+    <form action="" id="js-chat-form">
+        <input id="js-msg" placeholder="Chat message here..."/>
+    </form>
+</div>
+
+
+<h3>CHAT</h3>
+<ul id="js-responses" class="logs"></ul>
+
+<button id="js-ready-btn" class="btn">READY!</button>
+
+<script>
+    //var socket = io.connect('http://localhost:7000'),
+    var socket = io.connect('http://localhost:9362'),
+        el_responses = document.querySelector('#js-responses');
+        el_send_btn = document.querySelector('#js-send-btn');
+        el_chat_form = document.querySelector('#js-chat-form');
+        el_ready_btn =  document.querySelector('#js-ready-btn');
+        el_msg = document.querySelector('#js-msg'),
+        name = Array.apply(null, new Array(4)).map(function(){return String.fromCharCode(~~(Math.random()*26) + 97); }).join('');
+
+    function send (name, data) {
+    }
+    socket.on('welcome', function (data) {
+        id = data.id;
+        log(data.msg);
+        init();
+    });
+    
+    socket.on('msg', function (data) {
+        log(data);
+    });
+    
+    socket.on('remove-player', function (data) {
+        delete players[data.id];
+        log('<b>' + data.name + '</b> left.');
+    });
+     
+    socket.on('insert-player', function (data) {
+        insertPlayer(data);
+        log('<b>' + data.name + '</b> joined.');
+    });
+
+    socket.on('insert-players', function (players) {
+        for (var i = 0, len = players.length; i < len; i++) {
+            insertPlayer(players[i]);
+        }
+    });
+
+    socket.on('level-start', function (msg) {
+        log('Started level: <b>' + msg.level + '</b>');
+        createLevel(msg.data);
+    });
+    
+    socket.on('level-end', function (msg) {
+        log('You <b>' + (msg.won ? 'WON' : 'LOOSE') + '</b>');
+        forEvery (msg.fall, function (i) {
+            blocks[i].is_on_ground = 0;
+        });
+    });
+    
+    socket.on('update-players', function (data) {
+        for (var i = 0, len = data.length; i < len; i++) {
+            // do not update myself, for now.
+            if (data[i].id === id) continue;
+            var player = players[data[i].id];
+            if (!player) continue;
+            player.x = data[i].x;
+            player.y = data[i].y;
+            //player.speed_x = data[i].speed_x;
+            //player.speed_y = data[i].speed_y;
+            //player.speed_is_on_ground = data[i].is_on_ground;
+        };
+    });
+
+    function log (data) {
+        var li = '<li>' + data + '</li>';
+        el_responses.innerHTML = li + el_responses.innerHTML;
+    }
+
+    el_chat_form.addEventListener('submit', function (e) {
+        var msg = el_msg.value;
+        el_msg.value = '';
+        socket.emit('msg', msg);
+        log('<b>You</b>: ' + msg);
+        e.preventDefault();
+    });
+
+    el_ready_btn.addEventListener('click', function (e) {
+        //if (state === states.READY) return;
+        socket.emit('msg', 'ready');
+        log('READY!');
+    });
+
+    /* Game code */
+    var w = 550,
+        h = 300,
+        G = 1550,
+        ground_y = h,
+        last_time = Date.now(),
+        last_emit_time = Date.now(),
+        ctx = c.getContext('2d'),
+        players = {},
+        blocks = [],
+        me = null,
+        id = 0,
+        updateInterval = 100;
+
+    function createLevel (splits) {
+        var start_x = 0,
+            end_x = 0
+            block = null;
+        splits = splits.concat(1);
+        blocks = [];
+
+        for (var i = 0, len = splits.length; i < len; i++) {
+            end_x = ~~(splits[i] * w);
+            block = createChar();
+            block.x = start_x;
+            block.w = end_x - start_x;
+            block.h = 50;
+            block.color = generateRandomColor();
+            block.is_on_ground = 1;
+            blocks.push(block);
+            start_x = end_x;
+        }
+    }
+
+    function createChar () {
+        return {
+            x: 0,
+            y: 0,
+            w: 10,
+            h: 10,
+            color: '#000',
+            speed_x: 0,
+            speed_y: 0,
+            is_on_ground: 0,
+            jump: function () {
+                this.speed_y = -550;
+                this.is_on_ground = 0;
+            },
+            update: function (dt) {
+                if (!this.is_on_ground) {
+                    this.speed_y += G * dt;
+                }
+                this.x += this.speed_x * dt;
+                this.y += this.speed_y * dt;
+
+                if (this.y >= ground_y) {
+                    this.y = ground_y - this.h;
+                    this.is_on_ground = 1;
+                    this.speed_y = 0;
+                }
+                
+                return this;
+            },
+            draw: function () {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.rect(this.x, this.y, this.w, this.h);
+                ctx.fill();
+
+                if (this.name) {
+                    ctx.font = '8pt Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(this.name === name ? 'You' : this.name, this.x, this.y - 10);
+                }
+
+                return this;
+            }
+        };
+    }
+
+    function insertPlayer (data) {
+        var player = createChar();
+        player.x = data.x;
+        player.y = data.y;
+        player.color = data.color;
+        player.id = data.id;
+        player.name = data.name;
+        players[data.id] = player;
+        return player;
+    }
+
+    function animate () {
+        var current_time = Date.now(),
+            dt = (current_time - last_time) / 1000;
+        last_time = current_time;
+
+        ctx.clearRect(0, 0, w, h);
+
+        ctx.save();
+        forEvery (players, function (player) {
+            player && player.update(dt).draw();
+        });
+
+        forEvery (blocks, function (block) {
+            block && block.update(dt).draw();
+        });
+        ctx.restore();
+
+        // is it time to publish data
+        if (Date.now() - last_emit_time > updateInterval) {
+            socket.emit('update-data', {
+                x: me.x,
+                y: me.y,
+                speed_x: me.speed_x,
+                speed_y: me.speed_y,
+                is_on_groud: me.is_on_ground
+            });
+            last_emit_time = Date.now();
+        }
+        requestAnimationFrame(animate);
+    }
+
+    function initListeners () {
+        document.addEventListener('keyup', function (e) {
+            if (e.which === 38 && me.is_on_ground) {
+                me.jump();
+            }
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.which === 39) {
+                me.x += me.w;
+            }
+            else if (e.which === 37) {
+                me.x -= me.w;
+            }
+        });
+    }
+    
+    function generateRandomColor () {
+        return '#' + (~~(Math.random()*255) + (~~(Math.random()*255)<<8) + (~~(Math.random()*255)<<16) + (1<<24)).toString(16).slice(1);
+    }
+
+    function forEvery (obj, cb) {
+        // Its an array
+        if (obj instanceof Array) {
+            for (var i = 0, len = obj.length; i < len; i++) {
+                cb.call(this, obj[i]);
+            }
+            return;
+        }
+        // otherwise, loop object
+        for (var i in obj) {
+            cb.call(this, obj[i]);
+        }
+    }
+
+    function init () {
+        me = insertPlayer({
+            id: id,
+            x: ~~(Math.random() * 300) + 100,
+            y: 25,
+            color: generateRandomColor(),
+            name: name
+        });
+
+        // notify server about our data
+        socket.emit('set-data', {
+            id: me.id,
+            x: me.x,
+            y: me.y,
+            name: name,
+            color: me.color
+        });
+
+        initListeners();
+        animate();
+    }
+
+</script>
+</body>
+</html>
