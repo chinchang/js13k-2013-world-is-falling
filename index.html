@@ -49,7 +49,8 @@
         border: 1px solid #DDD;
     }
 </style>
-<script src="http://world-is-falling.cloudno.de:9362/socket.io/socket.io.js"></script>
+<!--<script src="http://world-is-falling.cloudno.de:9362/socket.io/socket.io.js"></script>-->
+<script src="/socket.io/socket.io.js"></script>
 <!--<script src="http://localhost:7000/socket.io/socket.io.js"></script>-->
 </head>
 
@@ -70,7 +71,7 @@
 
 <script>
     //var socket = io.connect('http://localhost:7000'),
-    var socket = io.connect('http://localhost:9362'),
+    var socket = io.connect('http://world-is-falling.cloudno.de:80'),
         el_responses = document.querySelector('#js-responses');
         el_send_btn = document.querySelector('#js-send-btn');
         el_chat_form = document.querySelector('#js-chat-form');
