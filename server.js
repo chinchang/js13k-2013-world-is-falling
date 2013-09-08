@@ -2,6 +2,10 @@ var app = require('http').createServer(),
     io = require('socket.io').listen(app),
     fs = require('fs');
 
+io.configure(function(){
+      io.set('transports', ['websocket']);
+});
+
 var players = [],
     updateInterval = 800,
     commands = {
@@ -81,7 +85,6 @@ var targetNum = 0,
     levelTime = 10000;
 
 function startLevel () {
-    targetNum = ~~(Math.random() * 10);
     currentLevelData = generateLevel();
     io.sockets.emit('level-start', {
         level: level,
