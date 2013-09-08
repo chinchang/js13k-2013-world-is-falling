@@ -3,7 +3,7 @@ var app = require('http').createServer(),
     fs = require('fs');
 
 io.configure(function(){
-      io.set('transports', ['websocket']);
+      io.set('transports', ['xhr-polling']);
 });
 
 var players = [],
