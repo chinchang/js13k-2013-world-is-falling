@@ -1,25 +1,19 @@
-var app = require('http').createServer(handler).listen(80),
+var app = require('http').createServer(handler),
     io = require('socket.io').listen(app),
     fs = require('fs');
 
-io.configure(function(){
-      io.set('transports', ['xhr-polling']);
-});
-
-
 function handler (req, res) {
-      fs.readFile(__dirname + '/index.html',
+    fs.readFile(__dirname + '/index.html',
         function (err, data) {
-                if (err) {
-                          res.writeHead(500);
-                                return res.end('Error loading index.html');
-                                    }
-
-                                        res.writeHead(200);
-                                            res.end(data);
-                                              });
+            if (err) {
+                res.writeHead(500);
+                return res.end('Error loading index.html');
+            }
+            res.writeHead(200);
+            res.end(data);
+        }
+    );
 }
-
 
 var players = [],
     updateInterval = 800,
@@ -28,7 +22,7 @@ var players = [],
     },
     readyCount = 0;
 
-app.listen(7000);
+app.listen(8000);
 
 io.sockets.on('connection', function (socket) {
     socket.emit('welcome', {msg: 'Hi, there! Welcome.', id: socket.id});
