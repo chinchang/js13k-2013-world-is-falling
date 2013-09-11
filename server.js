@@ -16,7 +16,7 @@ function handler (req, res) {
 }
 
 var players = [],
-    updateInterval = 800,
+    updateInterval = 1000/1,
     commands = {
         READY: 'ready'
     },
@@ -46,24 +46,19 @@ io.sockets.on('connection', function (socket) {
             if (msg === commands.READY) {
                 console.log(readyCount, players.length);
                 if (++readyCount === players.length) {
-                    resolveLevel();
+                    endLevel();
                 }
             }
             return;
         }
 
         socket.broadcast.emit('msg', '<b>' + socket.data.name + '</b>: ' + msg);
-        var num = parseInt(msg, 10);
-        if (num === targetNum) {
-            win(socket);
-        }
     });
     
     socket.on('set-data', function (data) {
+        data.score = 0;
         socket.data =  data;
-        socket.emit('insert-players', players.map(function (p) {
-            return p.data;
-        }));
+        socket.emit('insert-players', getAllPlayers());
         
         // save player in list
         players.push(socket);
@@ -81,9 +76,14 @@ io.sockets.on('connection', function (socket) {
     });
 });
 
+function getAllPlayers () {
+    return players.map(function (p) {
+        return p.data;
+    });
+}
+
 function startNewGame () {
     level = 1;
-    reset();
     startLevel();
 }
 
@@ -91,9 +91,10 @@ var targetNum = 0,
     level = 0,
     currentLevelData = null,
     levelTimeout,
-    levelTime = 10000;
+    levelTime = 4000;
 
 function startLevel () {
+    reset();
     currentLevelData = generateLevel();
     io.sockets.emit('level-start', {
         level: level,
@@ -103,20 +104,44 @@ function startLevel () {
 }
 
 function endLevel () {
-    resolveLevel();
-    //reset();
-    //startLevel();
+    // reset level if nobody left
+    level = resolveLevel() ? (level + 1) : 1;
+    // levelup after sometime
+    setTimeout(startLevel, 2000);
 }
 
 function resolveLevel () {
+    var fall = currentLevelData.fall[0],
+        splits = [0].concat(currentLevelData.splits.concat(1)),
+        wonCount = 0,
+        w = 450,
+        start_x = splits[fall] * w,
+        end_x = splits[fall + 1] * w,
+        loose;
+        console.log(start_x, end_x);
+
     players.forEach(function (socket) {
-        socket.emit('level-end', {won: 0, fall: currentLevelData.fall});
+        console.log(socket.data.x, socket.data.y);
+        // check if the player is gonna die or not
+        (loose = (socket.data.x >= start_x) && (socket.data.x <= end_x)) || ++wonCount && ++socket.data.score;
+        socket.data.loose = loose;
     });
+
+    var all_players = getAllPlayers();
+
+    players.forEach(function (socket) {
+        socket.emit('level-end', {
+            won: !socket.data.loose,
+            fall: currentLevelData.fall,
+            players: all_players
+        });
+        delete socket.data.loose;
+    });
+    return wonCount;
 }
 
-
 function generateLevel (c) {
-    var num_splits = 1 + ~~(Math.random() * 2),
+    var num_splits = Math.max(4 - level, 2) + ~~(Math.random() * 2),
         splits = Array.apply(null, new Array(num_splits)).map(function (i, j) {
             return (j + 1) * (1/(num_splits + 1));
         });
@@ -132,13 +157,6 @@ function reset () {
         levelTimeout = null;
     }
     readyCount = 0;
-}
-
-function win (socket) {
-    socket.emit('msg', 'YOU WIN!!');
-    socket.broadcast.emit('msg', 'Badluck, <b>' + socket.data.name + ' </b> won.');
-    level++;
-    endLevel();
 }
 
 function sendUpdates () {

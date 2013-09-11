@@ -6,6 +6,10 @@
         margin: 0;
         padding: 0;
     }
+    .cf {
+        overflow: hidden;
+        zoom: 1;
+    }
 
     body {
         font-size: 16px;
@@ -23,8 +27,6 @@
     .btn {
         background: #8DBB3C;
         color: white;
-        width: 100%;
-        position: fixed;
         bottom: 0;
         left: 0;
         border: none;
@@ -32,17 +34,38 @@
         font-weight: bold;
         cursor: pointer;
     }
-
+    
     .btn:hover {
         opacity: 0.8;
     }
 
+    .ready-btn {
+        margin: 20px 10px;
+    }
+
+    .main-wrap {
+        width: 650px;
+        margin: 0 auto;
+    }
     .game-box {
         text-align: center;
+        float: left;
+        width: 450px;
+    }
+    .scores-wrap {
+        width: 150px;
+        float: right;
     }
 
     .logs {
         font-size: 12px;
+        padding-left: 14px;
+        max-height: 150px;
+        overflow-y: auto; 
+    }
+
+    .score-me {
+        background: #DDD;
     }
     
     canvas {
@@ -55,23 +78,33 @@
 
 <body>
 
-<div class="game-box">
-    <canvas id="c" width="550" height="300"></canvas>
+<div class="main-wrap">
+    <div class="cf">
+        <div class="game-box">
+            <canvas id="c" width="450" height="300"></canvas>
+        </div>
+
+        <div class="scores-wrap">
+            <h3>LEADERBOARD</h3>
+            <ul id="js-scores" class="scores"></ul>
+        </div>
+    </div>
+
+    <h3>CHAT</h3>
     <form action="" id="js-chat-form">
         <input id="js-msg" placeholder="Chat message here..."/>
     </form>
+    <ul id="js-responses" class="logs"></ul>
+
+    
+    <button id="js-ready-btn" class="btn  ready-btn">READY!</button>
 </div>
 
-
-<h3>CHAT</h3>
-<ul id="js-responses" class="logs"></ul>
-
-<button id="js-ready-btn" class="btn">READY!</button>
-
 <script>
-    var socket = io.connect('http://localhost:8000'),
+    var socket = io.connect('/'),
     //var socket = io.connect('http://world-is-falling.cloudno.de:80'),
         el_responses = document.querySelector('#js-responses');
+        el_scores = document.querySelector('#js-scores');
         el_send_btn = document.querySelector('#js-send-btn');
         el_chat_form = document.querySelector('#js-chat-form');
         el_ready_btn =  document.querySelector('#js-ready-btn');
@@ -109,13 +142,17 @@
     socket.on('level-start', function (msg) {
         log('Started level: <b>' + msg.level + '</b>');
         createLevel(msg.data);
+        state = states.PLAYING;
     });
+
     
     socket.on('level-end', function (msg) {
-        log('You <b>' + (msg.won ? 'WON' : 'LOOSE') + '</b>');
+        state = states.READY;
+        log('You <b>' + (msg.won ? 'WON!' : 'LOOSE. Badluck!') + '</b>');
         forEvery (msg.fall, function (i) {
             blocks[i].is_on_ground = 0;
         });
+        updateScores(msg.players);
     });
     
     socket.on('update-players', function (data) {
@@ -132,6 +169,14 @@
         };
     });
 
+    function updateScores (players) {
+        var html = '';
+        forEvery (players, function (p) {
+            html += '<li class="' + (p.id === id ? ' score-me ' : '') + '">' + p.name + ' (<b>' + p.score + '</b>)</li>';
+        });
+        el_scores.innerHTML = html;
+    }
+    
     function log (data) {
         var li = '<li>' + data + '</li>';
         el_responses.innerHTML = li + el_responses.innerHTML;
@@ -146,14 +191,15 @@
     });
 
     el_ready_btn.addEventListener('click', function (e) {
-        //if (state === states.READY) return;
+        if (state === states.READY) return;
+        state = states.READY;
         socket.emit('msg', 'ready');
         log('READY!');
     });
 
     /* Game code */
-    var w = 550,
-        h = 300,
+    var w = c.width,
+        h = c.height,
         G = 1550,
         ground_y = h,
         last_time = Date.now(),
@@ -163,7 +209,14 @@
         blocks = [],
         me = null,
         id = 0,
-        updateInterval = 100;
+        updateInterval = 1000/10,
+        states = {
+            PLAYING: 0,
+            READY: 1
+        },
+        state = states.PLAYING,
+        shake_timer = 0,
+        max_shake = 2;
 
     function createLevel (splits) {
         var start_x = 0,
@@ -206,10 +259,11 @@
                 this.x += this.speed_x * dt;
                 this.y += this.speed_y * dt;
 
-                if (this.y >= ground_y) {
+                if (this.y + this.h > ground_y) {
                     this.y = ground_y - this.h;
                     this.is_on_ground = 1;
                     this.speed_y = 0;
+                    shake_timer = 0.3;
                 }
                 
                 return this;
@@ -250,6 +304,12 @@
         ctx.clearRect(0, 0, w, h);
 
         ctx.save();
+        if (shake_timer) {
+            (shake_timer -= dt) > 0 && ctx.translate(Math.random() * (max_shake<<1) - max_shake, Math.random() * (max_shake<<1) - max_shake);
+        }
+        else {
+            shake_timer = 0
+        }
         forEvery (players, function (player) {
             player && player.update(dt).draw();
         });
@@ -281,10 +341,10 @@
         });
         document.addEventListener('keydown', function (e) {
             if (e.which === 39) {
-                me.x += me.w;
+                (state != states.READY) && (me.x += me.w);
             }
             else if (e.which === 37) {
-                me.x -= me.w;
+                (state != states.READY) && (me.x -= me.w);
             }
         });
     }
