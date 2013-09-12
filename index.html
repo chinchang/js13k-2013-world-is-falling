@@ -59,6 +59,7 @@
         text-align: center;
         float: left;
         width: 450px;
+        margin-bottom: 15px;
     }
     .scores-wrap {
         width: 150px;
@@ -96,6 +97,12 @@
     .join-form {
         margin-top: 50px;
     }
+
+    .footer {
+        position: fixed;
+        bottom: 20px;
+        width: 100%;
+    }
     
     canvas {
         border: 1px solid #DDD;
@@ -112,12 +119,15 @@
         <input id="js-name" placeholder="Nickname?"/>
         <input type="submit" class="btn  join-btn" value="JOIN>"/>
     </form>
-</div>i
+    <div class="footer  ta-align">Game by <a href="https://twitter.com/chinchang457" target="_blank">Kushagra Gour</a></div>
+</div>
 
 <div class="screen  hidden" id="js-game-screen">
     <div class="cf">
         <div class="game-box">
             <canvas id="c" width="450" height="300"></canvas>
+            <br>
+            <small>Any one block will fall randomly. Guess which one, and save yourself. Arrow keys might come handy. <b>Last man standing, WINS</b>.</small>
         </div>
 
         <div class="scores-wrap">
@@ -215,7 +225,6 @@
         });
 
         socket.on('level-start', function (msg) {
-            log('Started level: <b>' + msg.level + '</b>');
             createLevel(msg.data);
             state = states.PLAYING;
         });
@@ -223,7 +232,7 @@
         
         socket.on('level-end', function (msg) {
             state = states.READY;
-            log('You <b>' + (msg.won ? 'WON!' : 'LOOSE. Badluck!') + '</b>');
+            log(msg.won ? 'Well done.' : 'You LOSE. Badluck!');
             forEvery (msg.fall, function (i) {
                 blocks[i].is_on_ground = 0;
             });
