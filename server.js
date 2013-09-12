@@ -2,6 +2,8 @@ var app = require('http').createServer(handler),
     io = require('socket.io').listen(app),
     fs = require('fs');
 
+io.set('log level', 1);
+
 function handler (req, res) {
     fs.readFile(__dirname + '/index.html',
         function (err, data) {
@@ -16,7 +18,7 @@ function handler (req, res) {
 }
 
 var players = [],
-    updateInterval = 1000/1,
+    updateInterval = 1000/4,
     commands = {
         READY: 'ready'
     },
@@ -44,7 +46,6 @@ io.sockets.on('connection', function (socket) {
         if (commands[msg ? msg.toUpperCase() : '']) {
             // we got a predefined command
             if (msg === commands.READY) {
-                console.log(readyCount, players.length);
                 if (++readyCount === players.length) {
                     endLevel();
                 }
@@ -118,7 +119,7 @@ function resolveLevel () {
         start_x = splits[fall] * w,
         end_x = splits[fall + 1] * w,
         loose;
-        console.log(start_x, end_x);
+        console.log('=========', level, start_x, end_x);
 
     players.forEach(function (socket) {
         console.log(socket.data.x, socket.data.y);
@@ -127,7 +128,9 @@ function resolveLevel () {
         socket.data.loose = loose;
     });
 
-    var all_players = getAllPlayers();
+    var all_players = getAllPlayers().sort(function (a, b) {
+        return b.score - a.score;
+    });;
 
     players.forEach(function (socket) {
         socket.emit('level-end', {
