@@ -20,7 +20,7 @@
     input {
         border: 1px solid #CCC;
         padding: 12px;
-        width: 550px;
+        width: 450px;
         font-size: 18px;
     }
 
@@ -64,15 +64,30 @@
         overflow-y: auto; 
     }
 
-    .score-me {
-        background: #DDD;
+    .score-row {
+        position: relative;
+        list-style: none;
+        padding: 2px;
+    }
+    .score-row:nth-child(even) {
+        background: #EEE;
+    }   
+
+    .score-row-color-box {
+        position: absolute;
+        width: 13px;
+        height: 19px;
+        right: 2px;
+        top: 2px;
+    }
+    .score-row-me {
+        border: 3px solid #0A8BE7;
     }
     
     canvas {
         border: 1px solid #DDD;
     }
 </style>
-<!--<script src="http://world-is-falling.cloudno.de:9362/socket.io/socket.io.js"></script>-->
 <script src="/socket.io/socket.io.js"></script>
 </head>
 
@@ -102,7 +117,6 @@
 
 <script>
     var socket = io.connect('/'),
-    //var socket = io.connect('http://world-is-falling.cloudno.de:80'),
         el_responses = document.querySelector('#js-responses');
         el_scores = document.querySelector('#js-scores');
         el_send_btn = document.querySelector('#js-send-btn');
@@ -111,8 +125,6 @@
         el_msg = document.querySelector('#js-msg'),
         name = Array.apply(null, new Array(4)).map(function(){return String.fromCharCode(~~(Math.random()*26) + 97); }).join('');
 
-    function send (name, data) {
-    }
     socket.on('welcome', function (data) {
         id = data.id;
         log(data.msg);
@@ -137,6 +149,7 @@
         for (var i = 0, len = players.length; i < len; i++) {
             insertPlayer(players[i]);
         }
+        updateScores(players);
     });
 
     socket.on('level-start', function (msg) {
@@ -172,7 +185,7 @@
     function updateScores (players) {
         var html = '';
         forEvery (players, function (p) {
-            html += '<li class="' + (p.id === id ? ' score-me ' : '') + '">' + p.name + ' (<b>' + p.score + '</b>)</li>';
+            html += '<li class="score-row' + (p.id === id ? ' score-row-me ' : '') + '">' + p.name + ' (<b>' + p.score + '</b>)<div style="background:' + p.color + '" class="score-row-color-box"></div></li>';
         });
         el_scores.innerHTML = html;
     }
@@ -277,7 +290,7 @@
                 if (this.name) {
                     ctx.font = '8pt Arial';
                     ctx.textAlign = 'center';
-                    ctx.fillText(this.name === name ? 'You' : this.name, this.x, this.y - 10);
+                    ctx.fillText(this.name === name ? 'YOU' : this.name, this.x, this.y - 10);
                 }
 
                 return this;
