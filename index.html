@@ -10,18 +10,19 @@
         overflow: hidden;
         zoom: 1;
     }
-
+    .hidden { display: none; }
+    .ta-center{ text-align: center; }
     body {
         font-size: 16px;
         font-family: Arial;
-        color: #555;
+        color: #777;
     }
 
     input {
         border: 1px solid #CCC;
         padding: 12px;
-        width: 450px;
         font-size: 18px;
+        color: #777;
     }
 
     .btn {
@@ -30,7 +31,7 @@
         bottom: 0;
         left: 0;
         border: none;
-        padding: 15px;
+        padding: 13px;
         font-weight: bold;
         cursor: pointer;
     }
@@ -39,13 +40,20 @@
         opacity: 0.8;
     }
 
+    h1 {
+        font-size: 100px;
+    }
+
     .ready-btn {
         margin: 20px 10px;
     }
 
-    .main-wrap {
+    .screen {
+        position: absolute;
         width: 650px;
-        margin: 0 auto;
+        left: 50%;
+        margin-left: -325px;
+        //opacity: 0;
     }
     .game-box {
         text-align: center;
@@ -61,7 +69,8 @@
         font-size: 12px;
         padding-left: 14px;
         max-height: 150px;
-        overflow-y: auto; 
+        overflow-y: auto;
+        margin-top: 16px;
     }
 
     .score-row {
@@ -83,6 +92,10 @@
     .score-row-me {
         border: 3px solid #0A8BE7;
     }
+
+    .join-form {
+        margin-top: 50px;
+    }
     
     canvas {
         border: 1px solid #DDD;
@@ -93,7 +106,15 @@
 
 <body>
 
-<div class="main-wrap">
+<div class="screen  ta-center" id="js-home-screen">
+    <h1>World is Falling</h1>
+    <form action="" id="js-join-form" class="join-form">
+        <input id="js-name" placeholder="Nickname?"/>
+        <input type="submit" class="btn  join-btn" value="JOIN>"/>
+    </form>
+</div>i
+
+<div class="screen  hidden" id="js-game-screen">
     <div class="cf">
         <div class="game-box">
             <canvas id="c" width="450" height="300"></canvas>
@@ -110,77 +131,23 @@
         <input id="js-msg" placeholder="Chat message here..."/>
     </form>
     <ul id="js-responses" class="logs"></ul>
-
-    
-    <button id="js-ready-btn" class="btn  ready-btn">READY!</button>
 </div>
 
 <script>
-    var socket = io.connect('/'),
-        el_responses = document.querySelector('#js-responses');
-        el_scores = document.querySelector('#js-scores');
-        el_send_btn = document.querySelector('#js-send-btn');
-        el_chat_form = document.querySelector('#js-chat-form');
-        el_ready_btn =  document.querySelector('#js-ready-btn');
+    var socket = null,
+        el_responses = document.querySelector('#js-responses'),
+        el_scores = document.querySelector('#js-scores'),
+        el_send_btn = document.querySelector('#js-send-btn'),
+        el_chat_form = document.querySelector('#js-chat-form'),
+        el_join_form = document.querySelector('#js-join-form'),
+        el_ready_btn =  document.querySelector('#js-ready-btn'),
         el_msg = document.querySelector('#js-msg'),
-        name = Array.apply(null, new Array(4)).map(function(){return String.fromCharCode(~~(Math.random()*26) + 97); }).join('');
+        el_name = document.querySelector('#js-name'),
+        el_home_screen = document.querySelector('#js-home-screen'),
+        el_game_screen = document.querySelector('#js-game-screen'),
+        //name = Array.apply(null, new Array(4)).map(function(){return String.fromCharCode(~~(Math.random()*26) + 97); }).join('');
+        name = '';
 
-    socket.on('welcome', function (data) {
-        id = data.id;
-        log(data.msg);
-        init();
-    });
-    
-    socket.on('msg', function (data) {
-        log(data);
-    });
-    
-    socket.on('remove-player', function (data) {
-        delete players[data.id];
-        log('<b>' + data.name + '</b> left.');
-    });
-     
-    socket.on('insert-player', function (data) {
-        insertPlayer(data);
-        log('<b>' + data.name + '</b> joined.');
-    });
-
-    socket.on('insert-players', function (players) {
-        for (var i = 0, len = players.length; i < len; i++) {
-            insertPlayer(players[i]);
-        }
-        updateScores(players);
-    });
-
-    socket.on('level-start', function (msg) {
-        log('Started level: <b>' + msg.level + '</b>');
-        createLevel(msg.data);
-        state = states.PLAYING;
-    });
-
-    
-    socket.on('level-end', function (msg) {
-        state = states.READY;
-        log('You <b>' + (msg.won ? 'WON!' : 'LOOSE. Badluck!') + '</b>');
-        forEvery (msg.fall, function (i) {
-            blocks[i].is_on_ground = 0;
-        });
-        updateScores(msg.players);
-    });
-    
-    socket.on('update-players', function (data) {
-        for (var i = 0, len = data.length; i < len; i++) {
-            // do not update myself, for now.
-            if (data[i].id === id) continue;
-            var player = players[data[i].id];
-            if (!player) continue;
-            player.x = data[i].x;
-            player.y = data[i].y;
-            //player.speed_x = data[i].speed_x;
-            //player.speed_y = data[i].speed_y;
-            //player.speed_is_on_ground = data[i].is_on_ground;
-        };
-    });
 
     function updateScores (players) {
         var html = '';
@@ -203,12 +170,84 @@
         e.preventDefault();
     });
 
-    el_ready_btn.addEventListener('click', function (e) {
+    /*el_ready_btn.addEventListener('click', function (e) {
         if (state === states.READY) return;
         state = states.READY;
         socket.emit('msg', 'ready');
         log('READY!');
+    });*/
+
+    el_join_form.addEventListener('submit', function (e) {
+        name = el_name.value;
+        if (name) {
+            socket = io.connect('/');
+            initSocketListeners();
+        }
+        e.preventDefault();
     });
+
+    function initSocketListeners () {
+        socket.on('welcome', function (data) {
+            id = data.id;
+            log(data.msg);
+            init();
+        });
+        
+        socket.on('msg', function (data) {
+            log(data);
+        });
+        
+        socket.on('remove-player', function (data) {
+            delete players[data.id];
+            log('<b>' + data.name + '</b> left.');
+        });
+         
+        socket.on('insert-player', function (data) {
+            insertPlayer(data);
+            log('<b>' + data.name + '</b> joined.');
+        });
+
+        socket.on('insert-players', function (players) {
+            for (var i = 0, len = players.length; i < len; i++) {
+                insertPlayer(players[i]);
+            }
+            updateScores(players);
+        });
+
+        socket.on('level-start', function (msg) {
+            log('Started level: <b>' + msg.level + '</b>');
+            createLevel(msg.data);
+            state = states.PLAYING;
+        });
+
+        
+        socket.on('level-end', function (msg) {
+            state = states.READY;
+            log('You <b>' + (msg.won ? 'WON!' : 'LOOSE. Badluck!') + '</b>');
+            forEvery (msg.fall, function (i) {
+                blocks[i].is_on_ground = 0;
+            });
+            updateScores(msg.players);
+        });
+        
+        socket.on('update-players', function (data) {
+            for (var i = 0, len = data.length; i < len; i++) {
+                // do not update myself, for now.
+                if (data[i].id === id) continue;
+                var player = players[data[i].id];
+                if (!player) continue;
+                player.x = data[i].x;
+                player.y = data[i].y;
+                //player.speed_x = data[i].speed_x;
+                //player.speed_y = data[i].speed_y;
+                //player.speed_is_on_ground = data[i].is_on_ground;
+            };
+        });
+
+        socket.on('won', function (data) {
+            log('Awesome, YOU WON THE GAME!!!');
+        });
+    }
 
     /* Game code */
     var w = c.width,
@@ -399,7 +438,17 @@
         });
 
         initListeners();
+        hide(el_home_screen);
+        show(el_game_screen);
         animate();
+    }
+
+    function show (el) {
+        el.className = el.className.replace(/hidden/g, '');
+    }
+
+    function hide (el) {
+        el.className = el.className + ' hidden ';
     }
 
 </script>

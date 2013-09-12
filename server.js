@@ -30,26 +30,30 @@ io.sockets.on('connection', function (socket) {
     socket.emit('welcome', {msg: 'Hi, there! Welcome.', id: socket.id});
 
     socket.on('disconnect', function () {
-        socket.broadcast.emit('remove-player', {
-            name: socket.data.name,
-            id: socket.data.id
-        });
+        if (socket.data) {
+            socket.broadcast.emit('remove-player', {
+                name: socket.data.name,
+                id: socket.data.id,
+            });
+        }
 
         for (var i = 0; len = players.length; i++) {
             if (players[i] === socket) {
                 players.splice(i, 1);
-                return;
+                break;
             }
+        }
+        // check if only 1 player left, he won!
+        if (players.length === 1) {
+            var p = players[0];
+            p.data.won = (p.data.won || 0) + 1;
+            p.emit('won', {won: p.data.won});
+            stopGame();
         }
     });
     socket.on('msg', function (msg) {
         if (commands[msg ? msg.toUpperCase() : '']) {
             // we got a predefined command
-            if (msg === commands.READY) {
-                if (++readyCount === players.length) {
-                    endLevel();
-                }
-            }
             return;
         }
 
@@ -86,6 +90,10 @@ function getAllPlayers () {
 function startNewGame () {
     level = 1;
     startLevel();
+}
+
+function stopGame () {
+    clearTimeout(levelTimeout);
 }
 
 var targetNum = 0,
@@ -171,6 +179,15 @@ function sendUpdates () {
 }
 
 setInterval(sendUpdates, updateInterval);
+
+function save () {
+    fs.exists('scores.json', function (exists) {
+    });
+
+    fs.writeFile('scores.json', JSON.stringify(getAllPlayers()), function () {
+        console.log('saving done...............');
+    });
+}
 
 _ = {};
 _.extend = function (obj) {
