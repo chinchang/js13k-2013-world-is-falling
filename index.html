@@ -174,7 +174,7 @@
     }
 
     el_chat_form.addEventListener('submit', function (e) {
-        var msg = el_msg.value;
+        var msg = htmlEntities(el_msg.value);
         el_msg.value = '';
         socket.emit('msg', msg);
         log('<b>You</b>: ' + msg);
@@ -189,7 +189,7 @@
     });*/
 
     el_join_form.addEventListener('submit', function (e) {
-        name = el_name.value;
+        name = htmlEntities(el_name.value);
         if (name) {
             socket = io.connect('/');
             initSocketListeners();
@@ -459,6 +459,9 @@
 
     function hide (el) {
         el.className = el.className + ' hidden ';
+    }
+    function htmlEntities(str) {
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
 </script>
