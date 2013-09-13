@@ -408,6 +408,12 @@
             else if (e.which === 37) {
                 (state != states.READY) && (me.x -= me.w);
             }
+            if (me.x < 0) {
+                me.x = 0;
+            }
+            else if (me.x + me.w > w) {
+                me.x = w - me.x;
+            }
         });
     }
     
