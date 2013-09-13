@@ -67,6 +67,7 @@ io.sockets.on('connection', function (socket) {
         
         // save player in list
         players.push(socket);
+        console.log('player joined: ', data && data.name); 
         if (players.length === 2) {
             startNewGame();
         }
@@ -127,10 +128,10 @@ function resolveLevel () {
         start_x = splits[fall] * w,
         end_x = splits[fall + 1] * w,
         loose;
-        console.log('=========', level, start_x, end_x);
+        //console.log('=========', level, start_x, end_x);
 
     players.forEach(function (socket) {
-        console.log(socket.data.x, socket.data.y);
+        //console.log(socket.data.x, socket.data.y);
         // check if the player is gonna die or not
         (loose = (socket.data.x >= start_x) && (socket.data.x <= end_x)) || ++wonCount && ++socket.data.score;
         socket.data.loose = loose;
