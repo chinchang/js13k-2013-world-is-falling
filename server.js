@@ -24,6 +24,7 @@ var players = [],
     },
     readyCount = 0,
     initialMoney = 200,
+    currentBet = 0,
 	currentPlayer,
 	currentPlayerId;
 
@@ -36,7 +37,7 @@ io.sockets.on('connection', function (socket) {
         if (socket.data) {
             socket.broadcast.emit('remove-player', {
                 name: socket.data.name,
-                id: socket.data.id,
+                id: socket.data.id
             });
         }
 
@@ -56,16 +57,17 @@ io.sockets.on('connection', function (socket) {
     });
     socket.on('msg', function (msg) {
         if (msg != 'displayAction') {
+            socket.broadcast.emit('msg' , '<b>' + currentPlayer.name + ' called the action ' + JSON.stringify(msg) + '</b>: ');
             performAction(msg.action, msg);
-            socket.broadcast.emit('displayAction' , '<b>' + currentPlayer.name + ' called the action ' + msg + '</b>: ');
         } else {
-            document.getElementById('chatbox').innertHtml += '<p>' + msg + '</p>';
         }
     });
 
     socket.on('set-data', function (data) {
         data.score = 0;
         socket.data =  data;
+        socket.data.socket = socket;
+
         socket.emit('insert-players', getAllPlayers());
 
         // save player in list
@@ -93,33 +95,38 @@ function getAllPlayers () {
 
 function startNewGame () {
 	var players = getAllPlayers();
-	players[0].master = 0;
+	players[0].master = true;
 	currentPlayerId = 0;
 	currentPlayer = players[0];
-    foreach (players as player) {
-	    players[player].money = initialMoney;
-		players[player].isActive = 1;
+    for (player in players) {
+	    players[player].chipsValue = initialMoney;
+		players[player].isActive = true;
     }
 	startRound();
 }
 
 function startRound() {
+    currentBet = 0;
 	var players = getAllPlayers();
-	foreach (players as player) {
-		players[player].isActive = (players[player].money > 0);
+	for (player in players) {
+		players[player].isActive = (players[player].chipsValue > 0);
 		players[player].currentBet = 0;
 	}
 	move();
-}	
+}
 
 var proceedTimeout;
 
 function move() {
-	currentPlayer = players[(++currentPlayerId%players.length)];
-	if (currentPlayer.isActive != 1) {
+    var players = getAllPlayers();
+
+	currentPlayer = players[(++currentPlayerId % players.length)];
+	if (!currentPlayer.isActive) {
 		move();
 	} else {
-		proceedTimeout = setTimeout(fold, 120);
+		proceedTimeout = setTimeout(Actions.fold, 10000);
+        currentPlayer.socket.emit('msg' , '<b>Your chance</b>: ');
+
 	}
 }
 
@@ -217,7 +224,7 @@ function sendUpdates () {
 function performAction(action, data) {
     if (currentPlayer.isActive) {
         Actions[action](data);
-        level.proceed();
+        proceed();
     }
 }
 
