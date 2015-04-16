@@ -57,6 +57,7 @@ io.sockets.on('connection', function (socket) {
     });
     socket.on('msg', function (msg) {
         if (msg != 'displayAction') {
+            console.log(99, currentPlayer)
             socket.broadcast.emit('msg' , '<b>' + currentPlayer.name + ' called the action ' + JSON.stringify(msg) + '</b>: ');
             performAction(msg.action, msg);
         } else {
@@ -66,7 +67,6 @@ io.sockets.on('connection', function (socket) {
     socket.on('set-data', function (data) {
         data.score = 0;
         socket.data =  data;
-        socket.data.socket = socket;
 
         socket.emit('insert-players', getAllPlayers());
 
@@ -94,13 +94,13 @@ function getAllPlayers () {
 }
 
 function startNewGame () {
-	var players = getAllPlayers();
-	players[0].master = true;
+	// var players = getAllPlayers();
+	players[0].data.master = true;
 	currentPlayerId = 0;
 	currentPlayer = players[0];
     for (player in players) {
-	    players[player].chipsValue = initialMoney;
-		players[player].isActive = true;
+	    players[player].data.chipsValue = initialMoney;
+		players[player].data.isActive = true;
     }
 	startRound();
 }
@@ -118,14 +118,14 @@ function startRound() {
 var proceedTimeout;
 
 function move() {
-    var players = getAllPlayers();
+    // var players = getAllPlayers();
 
 	currentPlayer = players[(++currentPlayerId % players.length)];
-	if (!currentPlayer.isActive) {
+	if (!currentPlayer.data.isActive) {
 		move();
 	} else {
 		proceedTimeout = setTimeout(Actions.fold, 10000);
-        currentPlayer.socket.emit('msg' , '<b>Your chance</b>: ');
+        currentPlayer.emit('msg' , '<b>Your chance</b>: ');
 
 	}
 }
