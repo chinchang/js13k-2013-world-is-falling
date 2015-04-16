@@ -160,6 +160,7 @@
         el_name = document.querySelector('#js-name'),
         el_home_screen = document.querySelector('#js-home-screen'),
         el_game_screen = document.querySelector('#js-game-screen'),
+        el_bet_input = document.querySelector('#js-bet-input'),
         //name = Array.apply(null, new Array(4)).map(function(){return String.fromCharCode(~~(Math.random()*26) + 97); }).join('');
         name = '';
 
@@ -167,7 +168,7 @@
     function updateScores (players) {
         var html = '';
         forEvery (players, function (p) {
-            html += '<li class="score-row' + (p.id === id ? ' score-row-me ' : '') + '">' + p.name + ' (<b>' + p.score + '</b>)<div style="background:' + p.color + '" class="score-row-color-box"></div></li>';
+            html += '<li class="score-row' + (p.id === id ? ' score-row-me ' : '') + '">' + p.name + ' (<b>' + p.chipsValue + '</b>)<div style="background:' + p.color + '" class="score-row-color-box">' + p.currentBet + '</div></li>';
         });
         el_scores.innerHTML = html;
     }
@@ -354,8 +355,9 @@
 
     function raise() {
         socket.emit('raise', {
-            amount: document.querySelector('#js-bet-input').value
+            currentBet: el_bet_input.value
         });
+        el_bet_input.value = 0;
     }
 
     function initListeners () {
