@@ -25,7 +25,7 @@
         color: #777;
     }
 
-    .btn {
+    button, .btn {
         background: #8DBB3C;
         color: white;
         bottom: 0;
@@ -35,7 +35,8 @@
         font-weight: bold;
         cursor: pointer;
     }
-    
+
+    button:hover,
     .btn:hover {
         opacity: 0.8;
     }
@@ -81,7 +82,7 @@
     }
     .score-row:nth-child(even) {
         background: #EEE;
-    }   
+    }
 
     .score-row-color-box {
         position: absolute;
@@ -104,7 +105,7 @@
         left: 0;
         width: 100%;
     }
-    
+
     canvas {
         border: 1px solid #DDD;
     }
@@ -115,20 +116,22 @@
 <body>
 
 <div class="screen  ta-center" id="js-home-screen">
-    <h1>World is Falling</h1>
+    <h1>Poker</h1>
     <form action="" id="js-join-form" class="join-form">
         <input id="js-name" placeholder="Nickname?"/>
         <input type="submit" class="btn  join-btn" value="JOIN>"/>
     </form>
-    <div class="footer  ta-align">Game by <a href="https://twitter.com/chinchang457" target="_blank">Kushagra Gour</a> | <a href="https://github.com/chinchang/world-is-falling">Source</a></div>
+    <!-- <div class="footer  ta-align">Game by <a href="https://twitter.com/chinchang457" target="_blank">Kushagra Gour</a> | <a href="https://github.com/chinchang/world-is-falling">Source</a></div> -->
 </div>
 
 <div class="screen  hidden" id="js-game-screen">
     <div class="cf">
         <div class="game-box">
-            <canvas id="c" width="450" height="300"></canvas>
-            <br>
-            <small>Any one block will fall randomly. Guess which one, and save yourself. Arrow keys might come handy. <b>Last man standing, WINS</b>.</small>
+            <input id="js-bet-input" type="number" value="0">
+            <br><br>
+            <button onclick="call()">Call</button>
+            <button onclick="check()">Check</button>
+            <button onclick="fold()">Fold</button>
         </div>
 
         <div class="scores-wrap">
@@ -167,7 +170,7 @@
         });
         el_scores.innerHTML = html;
     }
-    
+
     function log (data) {
         var li = '<li>' + data + '</li>';
         el_responses.innerHTML = li + el_responses.innerHTML;
@@ -203,16 +206,16 @@
             log(data.msg);
             init();
         });
-        
+
         socket.on('msg', function (data) {
             log(data);
         });
-        
+
         socket.on('remove-player', function (data) {
             delete players[data.id];
             log('<b>' + data.name + '</b> left.');
         });
-         
+
         socket.on('insert-player', function (data) {
             insertPlayer(data);
             log('<b>' + data.name + '</b> joined.');
@@ -230,16 +233,14 @@
             state = states.PLAYING;
         });
 
-        
+
         socket.on('level-end', function (msg) {
             state = states.READY;
             log(msg.won ? 'Well done.' : 'You LOSE. Badluck!');
-            forEvery (msg.fall, function (i) {
-                blocks[i].is_on_ground = 0;
-            });
+
             updateScores(msg.players);
         });
-        
+
         socket.on('update-players', function (data) {
             for (var i = 0, len = data.length; i < len; i++) {
                 // do not update myself, for now.
@@ -248,9 +249,6 @@
                 if (!player) continue;
                 player.x = data[i].x;
                 player.y = data[i].y;
-                //player.speed_x = data[i].speed_x;
-                //player.speed_y = data[i].speed_y;
-                //player.speed_is_on_ground = data[i].is_on_ground;
             };
         });
 
@@ -260,13 +258,12 @@
     }
 
     /* Game code */
-    var w = c.width,
-        h = c.height,
+    var w = 300,
+        h = 200,
         G = 1550,
         ground_y = h,
         last_time = Date.now(),
         last_emit_time = Date.now(),
-        ctx = c.getContext('2d'),
         players = {},
         blocks = [],
         me = null,
@@ -280,24 +277,8 @@
         shake_timer = 0,
         max_shake = 2;
 
-    function createLevel (splits) {
-        var start_x = 0,
-            end_x = 0
-            block = null;
-        splits = splits.concat(1);
-        blocks = [];
+    function createLevel () {
 
-        for (var i = 0, len = splits.length; i < len; i++) {
-            end_x = ~~(splits[i] * w);
-            block = createChar();
-            block.x = start_x;
-            block.w = end_x - start_x;
-            block.h = 50;
-            block.color = generateRandomColor();
-            block.is_on_ground = 1;
-            blocks.push(block);
-            start_x = end_x;
-        }
     }
 
     function createChar () {
@@ -315,34 +296,8 @@
                 this.is_on_ground = 0;
             },
             update: function (dt) {
-                if (!this.is_on_ground) {
-                    this.speed_y += G * dt;
-                }
-                this.x += this.speed_x * dt;
-                this.y += this.speed_y * dt;
-
-                if (this.y + this.h > ground_y) {
-                    this.y = ground_y - this.h;
-                    this.is_on_ground = 1;
-                    this.speed_y = 0;
-                    shake_timer = 0.3;
-                }
-                
-                return this;
             },
             draw: function () {
-                ctx.fillStyle = this.color;
-                ctx.beginPath();
-                ctx.rect(this.x, this.y, this.w, this.h);
-                ctx.fill();
-
-                if (this.name) {
-                    ctx.font = '8pt Arial';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(this.name === name ? 'YOU' : this.name, this.x, this.y - 10);
-                }
-
-                return this;
             }
         };
     }
@@ -359,6 +314,7 @@
     }
 
     function animate () {
+        return;
         var current_time = Date.now(),
             dt = (current_time - last_time) / 1000;
         last_time = current_time;
@@ -395,6 +351,12 @@
         requestAnimationFrame(animate);
     }
 
+    function call() {
+        socket.emit('call', {
+            amount: document.querySelector('#js-bet-input').value
+        });
+    }
+
     function initListeners () {
         document.addEventListener('keyup', function (e) {
             if (e.which === 38 && me.is_on_ground) {
@@ -416,7 +378,7 @@
             }
         });
     }
-    
+
     function generateRandomColor () {
         return '#' + (~~(Math.random()*255) + (~~(Math.random()*255)<<8) + (~~(Math.random()*255)<<16) + (1<<24)).toString(16).slice(1);
     }
