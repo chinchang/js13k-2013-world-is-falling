@@ -354,8 +354,9 @@
     }
 
     function raise() {
-        socket.emit('raise', {
-            currentBet: el_bet_input.value
+        socket.emit('msg', {
+            action: 'raise',
+            raiseValue: el_bet_input.value
         });
         el_bet_input.value = 0;
     }

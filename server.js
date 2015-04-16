@@ -56,7 +56,7 @@ io.sockets.on('connection', function (socket) {
     });
     socket.on('msg', function (msg) {
         if (msg != 'displayAction') {
-            performAction(msg);
+            performAction(msg.action, msg);
             socket.broadcast.emit('displayAction' , '<b>' + currentPlayer.name + ' called the action ' + msg + '</b>: ');
         } else {
             document.getElementById('chatbox').innertHtml += '<p>' + msg + '</p>';
@@ -214,30 +214,30 @@ function sendUpdates () {
     });
 }
 
-function performAction(action) {
+function performAction(action, data) {
     if (currentPlayer.isActive) {
-        Actions[action](action);
+        Actions[action](data);
         level.proceed();
     }
 }
 
 var Actions = {
     fold: function () {
-        currentPlayer.chipsValue -= currentPlayer.betSoFar;
+        currentPlayer.chipsValue -= currentPlayer.currentBet;
         currentPlayer.isActive = false;
     },
     call: function () {
-        var betDiff = currentBet - currentPlayer.betSoFar;
+        var betDiff = currentBet - currentPlayer.currentBet;
         currentPlayer.chipsValue -= betDiff;
         currentPlayer.currentBet += betDiff;
         Actions.makeBet(betDiff);
     },
-    raise: function(raiseValue) {
-        if (raiseValue > currentPlayer.chipsValue) {
-            raiseValue = currentPlayer.chipsValue;
+    raise: function(data) {
+        if (data.raiseValue > currentPlayer.chipsValue) {
+            data.raiseValue = currentPlayer.chipsValue;
         }
-        Actions.makeBet(raiseValue);
-        currentBet = currentBet + raiseValue;
+        Actions.makeBet(data.raiseValue);
+        currentBet = currentBet + data.raiseValue;
     },
     check: function() { /* Add any notification to player */},
     makeBet: function(value) {
