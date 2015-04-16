@@ -52,29 +52,29 @@ io.sockets.on('connection', function (socket) {
         }
     });
     socket.on('msg', function (msg) {
-        if (commands[msg ? msg.toUpperCase() : '']) {
-            // we got a predefined command
-            return;
+        if (msg != 'displayAction') {
+            performAction(msg);
+            socket.broadcast.emit('displayAction' , '<b>' + currentPlayer.name + ' called the action ' + msg + '</b>: ');
+        } else {
+            document.getElementById('chatbox').innertHtml += '<p>' + msg + '</p>';
         }
-
-        socket.broadcast.emit('msg', '<b>' + socket.data.name + '</b>: ' + msg);
     });
-    
+
     socket.on('set-data', function (data) {
         data.score = 0;
         socket.data =  data;
         socket.emit('insert-players', getAllPlayers());
-        
+
         // save player in list
         players.push(socket);
-        console.log('player joined: ', data && data.name); 
+        console.log('player joined: ', data && data.name);
         if (players.length === 2) {
             startNewGame();
         }
 
         socket.broadcast.emit('insert-player', data);
     });
-    
+
     socket.on('update-data', function (data) {
         if (!socket.data) return;
         delete data.id;
@@ -177,6 +177,40 @@ function sendUpdates () {
             return p.data;
         }));
     });
+}
+
+function performAction(action) {
+    if (currentPlayer.isActive) {
+        Actions[action](action);
+        level.proceed();
+    }
+}
+
+var Actions = {
+    fold: function () {
+        currentPlayer.chipsValue -= currentPlayer.betSoFar;
+        currentPlayer.isActive = false;
+    },
+    call: function () {
+        var betDiff = currentBet - currentPlayer.betSoFar;
+        currentPlayer.chipsValue -= betDiff;
+        currentPlayer.currentBet += betDiff;
+        Actions.makeBet(betDiff);
+    },
+    raise: function(raiseValue) {
+        if (raiseValue > currentPlayer.chipsValue) {
+            raiseValue = currentPlayer.chipsValue;
+        }
+        Actions.makeBet(raiseValue);
+        currentBet = currentBet + raiseValue;
+    },
+    check: function() { /* Add any notification to player */},
+    makeBet: function(value) {
+        currentPlayer.chipsValue -= value;
+        currentPlayer.currentBet += value;
+        //player is allIn
+        if(currentPlayer.currentBet <= 0 ) currentPlayer.isActive = false;
+    }
 }
 
 setInterval(sendUpdates, updateInterval);
