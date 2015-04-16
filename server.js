@@ -22,7 +22,10 @@ var players = [],
     commands = {
         READY: 'ready'
     },
-    readyCount = 0;
+    readyCount = 0,
+    initialMoney = 200,
+	currentPlayer,
+	currentPlayerId;
 
 app.listen(8000);
 
@@ -89,8 +92,40 @@ function getAllPlayers () {
 }
 
 function startNewGame () {
-    level = 1;
-    startLevel();
+	var players = getAllPlayers();
+	players[0].master = 0;
+	currentPlayerId = 0;
+	currentPlayer = players[0];
+    foreach (players as player) {
+	    players[player].money = initialMoney;
+		players[player].isActive = 1;
+    }
+	startRound();
+}
+
+function startRound() {
+	var players = getAllPlayers();
+	foreach (players as player) {
+		players[player].isActive = (players[player].money > 0);
+		players[player].currentBet = 0;
+	}
+	move();
+}	
+
+var proceedTimeout;
+
+function move() {
+	currentPlayer = players[(++currentPlayerId%players.length)];
+	if (currentPlayer.isActive != 1) {
+		move();
+	} else {
+		proceedTimeout = setTimeout(fold, 120);
+	}
+}
+
+function proceed() {
+	clearTimeout(proceedTimeout);
+	move();
 }
 
 function stopGame () {
