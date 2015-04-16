@@ -130,6 +130,7 @@
             <input id="js-bet-input" type="number" value="0">
             <br><br>
             <button onclick="call()">Call</button>
+            <button onclick="raise()">Raise</button>
             <button onclick="check()">Check</button>
             <button onclick="fold()">Fold</button>
         </div>
@@ -351,8 +352,8 @@
         requestAnimationFrame(animate);
     }
 
-    function call() {
-        socket.emit('call', {
+    function raise() {
+        socket.emit('raise', {
             amount: document.querySelector('#js-bet-input').value
         });
     }
