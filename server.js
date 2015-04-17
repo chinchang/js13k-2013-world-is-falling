@@ -56,12 +56,9 @@ io.sockets.on('connection', function (socket) {
         }
     });
     socket.on('msg', function (msg) {
-        if (msg != 'displayAction') {
-            console.log(99, currentPlayer)
-            socket.broadcast.emit('msg' , '<b>' + currentPlayer.name + ' called the action ' + JSON.stringify(msg) + '</b>: ');
-            performAction(msg.action, msg);
-        } else {
-        }
+        console.log('msg', JSON.stringify(msg))
+        socket.broadcast.emit('msg' , '<b>' + currentPlayer.data.name + ' performed ' + JSON.stringify(msg) + '</b>: ');
+        performAction(msg.action, msg);
     });
 
     socket.on('set-data', function (data) {
@@ -106,6 +103,8 @@ function startNewGame () {
 }
 
 function startRound() {
+    console.log('startround');
+
     currentBet = 0;
 	var players = getAllPlayers();
 	for (player in players) {
@@ -118,8 +117,7 @@ function startRound() {
 var proceedTimeout;
 
 function move() {
-    // var players = getAllPlayers();
-
+    console.log('move');
 	currentPlayer = players[(++currentPlayerId % players.length)];
 	if (!currentPlayer.data.isActive) {
 		move();
@@ -131,6 +129,7 @@ function move() {
 }
 
 function proceed() {
+    console.log('proceed');
 	clearTimeout(proceedTimeout);
 	move();
 }
@@ -222,37 +221,40 @@ function sendUpdates () {
 }
 
 function performAction(action, data) {
-    if (currentPlayer.isActive) {
+    if (currentPlayer.data.isActive) {
         Actions[action](data);
         proceed();
+
+        sendUpdates();
     }
 }
 
 var Actions = {
     fold: function () {
-        currentPlayer.chipsValue -= currentPlayer.currentBet;
-        currentPlayer.isActive = false;
+        currentPlayer.data.chipsValue -= currentPlayer.data.currentBet;
+        currentPlayer.data.isActive = false;
     },
     call: function () {
-        var betDiff = currentBet - currentPlayer.currentBet;
-        currentPlayer.chipsValue -= betDiff;
-        currentPlayer.currentBet += betDiff;
-        Actions.makeBet(betDiff);
+        console.log('call');
+        Actions.raise({ raiseValue: 0 });
     },
     raise: function(data) {
-        if (data.raiseValue > currentPlayer.chipsValue) {
-            data.raiseValue = currentPlayer.chipsValue;
+        console.log('raise');
+
+        /* If raise exceeds limit, make it max possible */
+        if (data.raiseValue > currentPlayer.data.chipsValue) {
+            data.raiseValue = currentPlayer.data.chipsValue;
         }
-        Actions.makeBet(data.raiseValue);
-        currentBet = currentBet + data.raiseValue;
-    },
-    check: function() { /* Add any notification to player */},
-    makeBet: function(value) {
-        currentPlayer.chipsValue -= value;
-        currentPlayer.currentBet += value;
+        var raise = +data.raiseValue,
+            myBet = currentBet - currentPlayer.data.currentBet + raise;
+        console.log('mybet', myBet)
+        currentPlayer.data.chipsValue -= myBet;
+        currentPlayer.data.currentBet += myBet;
+        currentBet += raise;
         //player is allIn
-        if(currentPlayer.currentBet <= 0 ) currentPlayer.isActive = false;
-    }
+        if (currentPlayer.chipsValue <= 0 ) currentPlayer.data.isActive = false;
+    },
+    check: function() { /* Add any notification to player */}
 }
 
 setInterval(sendUpdates, updateInterval);

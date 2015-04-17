@@ -164,6 +164,7 @@
         //name = Array.apply(null, new Array(4)).map(function(){return String.fromCharCode(~~(Math.random()*26) + 97); }).join('');
         name = '';
 
+    el_name.value = 'Player' + ~~(Math.random() * 10)
 
     function updateScores (players) {
         var html = '';
@@ -244,14 +245,16 @@
         });
 
         socket.on('update-players', function (data) {
-            for (var i = 0, len = data.length; i < len; i++) {
-                // do not update myself, for now.
-                if (data[i].id === id) continue;
-                var player = players[data[i].id];
-                if (!player) continue;
-                player.x = data[i].x;
-                player.y = data[i].y;
-            };
+            updateScores(data);
+
+            // for (var i = 0, len = data.length; i < len; i++) {
+            //     // do not update myself, for now.
+            //     if (data[i].id === id) continue;
+            //     var player = players[data[i].id];
+            //     if (!player) continue;
+            //     player.x = data[i].x;
+            //     player.y = data[i].y;
+            // };
         });
 
         socket.on('won', function (data) {
@@ -359,6 +362,24 @@
             raiseValue: el_bet_input.value
         });
         el_bet_input.value = 0;
+    }
+
+    function call() {
+        socket.emit('msg', {
+            action: 'call'
+        });
+    }
+
+    function check() {
+        socket.emit('msg', {
+            action: 'check'
+        });
+    }
+
+    function fold() {
+        socket.emit('msg', {
+            action: 'fold'
+        });
     }
 
     function initListeners () {
