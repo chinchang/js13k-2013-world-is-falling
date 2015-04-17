@@ -26,6 +26,8 @@ var players = [],
     initialMoney = 200,
     currentBet = 0,
 	currentPlayer,
+    lastRaiser,
+    stage = 1,
 	currentPlayerId;
 
 app.listen(8000);
@@ -65,16 +67,18 @@ io.sockets.on('connection', function (socket) {
         data.score = 0;
         socket.data =  data;
 
-        socket.emit('insert-players', getAllPlayers());
+        // socket.emit('insert-players', getAllPlayers());
 
         // save player in list
         players.push(socket);
+        console.log('length', players[0].data);
+        sendUpdates();
         console.log('player joined: ', data && data.name);
         if (players.length === 2) {
             startNewGame();
         }
 
-        socket.broadcast.emit('insert-player', data);
+        // socket.broadcast.emit('insert-player', data);
     });
 
     socket.on('update-data', function (data) {
@@ -92,7 +96,7 @@ function getAllPlayers () {
 
 function startNewGame () {
 	// var players = getAllPlayers();
-	players[0].data.master = true;
+	dealer = players[0];
 	currentPlayerId = 0;
 	currentPlayer = players[0];
     for (player in players) {
@@ -103,9 +107,9 @@ function startNewGame () {
 }
 
 function startRound() {
-    console.log('startround');
-
+    sendUpdates();
     currentBet = 0;
+    stage = 0;
 	var players = getAllPlayers();
 	for (player in players) {
 		players[player].isActive = (players[player].chipsValue > 0);
@@ -114,17 +118,40 @@ function startRound() {
 	move();
 }
 
+function endRound() {
+    dealer++;
+    currentPlayer.emit('msg' , '<b>Round ended</b>: ');
+    startRound();
+}
+
 var proceedTimeout;
+
+function endStage() {
+    stage++;
+    if (stage === 3) {
+        endRound();
+    } else {
+        currentPlayerId = (players.indexOf(dealer)) % players.length;
+        lastRaiser = null;
+        currentPlayer.emit('msg' , '<b>Stage ended</b>: ');
+        move();
+    }
+}
 
 function move() {
     console.log('move');
 	currentPlayer = players[(++currentPlayerId % players.length)];
+
+    if (lastRaiser === currentPlayer) {
+        endStage();
+        return;
+    }
+
 	if (!currentPlayer.data.isActive) {
 		move();
 	} else {
-		proceedTimeout = setTimeout(Actions.fold, 10000);
-        currentPlayer.emit('msg' , '<b>Your chance</b>: ');
-
+		proceedTimeout = setTimeout(Actions.fold, 30000);
+        currentPlayer.emit('giveChance');
 	}
 }
 
@@ -224,7 +251,6 @@ function performAction(action, data) {
     if (currentPlayer.data.isActive) {
         Actions[action](data);
         proceed();
-
         sendUpdates();
     }
 }
@@ -245,8 +271,13 @@ var Actions = {
         if (data.raiseValue > currentPlayer.data.chipsValue) {
             data.raiseValue = currentPlayer.data.chipsValue;
         }
-        var raise = +data.raiseValue,
+        var raise = parseInt(data.raiseValue),
             myBet = currentBet - currentPlayer.data.currentBet + raise;
+
+        // Store last raiser for detecting round compeletion
+        if (raise) {
+            lastRaiser = currentPlayer;
+        }
         console.log('mybet', myBet)
         currentPlayer.data.chipsValue -= myBet;
         currentPlayer.data.currentBet += myBet;
@@ -257,7 +288,7 @@ var Actions = {
     check: function() { /* Add any notification to player */}
 }
 
-setInterval(sendUpdates, updateInterval);
+// setInterval(sendUpdates, updateInterval);
 
 function save () {
     fs.exists('scores.json', function (exists) {

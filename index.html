@@ -81,18 +81,25 @@
         padding: 2px;
     }
     .score-row:nth-child(even) {
-        background: #EEE;
+        background: #f9f9f9;
     }
 
     .score-row-color-box {
         position: absolute;
-        width: 13px;
-        height: 19px;
         right: 2px;
-        top: 2px;
+        top: -1px;
+        padding: 1px;
+        text-align: center;
+        border: 1px solid #eee;
+        border-radius: 50%;
     }
-    .score-row-me {
-        border: 3px solid #0A8BE7;
+    .score-row-me:before {
+        content: '';
+        position: absolute;
+        left: -10px;
+        top: 5px;
+        border: 6px solid transparent;
+        border-left-color: #0A8BE7;
     }
 
     .join-form {
@@ -118,7 +125,7 @@
 <div class="screen  ta-center" id="js-home-screen">
     <h1>Poker</h1>
     <form action="" id="js-join-form" class="join-form">
-        <input id="js-name" placeholder="Nickname?"/>
+        <input id="js-name" placeholder="Nickname?" autofocus/>
         <input type="submit" class="btn  join-btn" value="JOIN>"/>
     </form>
     <!-- <div class="footer  ta-align">Game by <a href="https://twitter.com/chinchang457" target="_blank">Kushagra Gour</a> | <a href="https://github.com/chinchang/world-is-falling">Source</a></div> -->
@@ -127,7 +134,7 @@
 <div class="screen  hidden" id="js-game-screen">
     <div class="cf">
         <div class="game-box">
-            <input id="js-bet-input" type="number" value="0">
+            <input id="js-bet-input" type="number" value="0" disabled=disabled style="font-size:120px;width:280px">
             <br><br>
             <button onclick="call()">Call</button>
             <button onclick="raise()">Raise</button>
@@ -169,7 +176,7 @@
     function updateScores (players) {
         var html = '';
         forEvery (players, function (p) {
-            html += '<li class="score-row' + (p.id === id ? ' score-row-me ' : '') + '">' + p.name + ' (<b>' + p.chipsValue + '</b>)<div style="background:' + p.color + '" class="score-row-color-box">' + p.currentBet + '</div></li>';
+            html += '<li class="score-row' + (p.id === id ? ' score-row-me ' : '') + '">' + p.name + ' (<b>' + (p.chipsValue || '-') + '</b>)<div style="" class="score-row-color-box">' + (p.currentBet || '-') + '</div></li>';
         });
         el_scores.innerHTML = html;
     }
@@ -214,20 +221,21 @@
             log(data);
         });
 
+        socket.on('giveChance', function (data) {
+            el_bet_input.removeAttribute('disabled');
+            log('Your chance dude');
+        });
+
         socket.on('remove-player', function (data) {
             delete players[data.id];
             log('<b>' + data.name + '</b> left.');
         });
 
         socket.on('insert-player', function (data) {
-            insertPlayer(data);
             log('<b>' + data.name + '</b> joined.');
         });
 
         socket.on('insert-players', function (players) {
-            for (var i = 0, len = players.length; i < len; i++) {
-                insertPlayer(players[i]);
-            }
             updateScores(players);
         });
 
@@ -305,17 +313,6 @@
             draw: function () {
             }
         };
-    }
-
-    function insertPlayer (data) {
-        var player = createChar();
-        player.x = data.x;
-        player.y = data.y;
-        player.color = data.color;
-        player.id = data.id;
-        player.name = data.name;
-        players[data.id] = player;
-        return player;
     }
 
     function animate () {
@@ -423,19 +420,10 @@
     }
 
     function init () {
-        me = insertPlayer({
-            id: id,
-            x: ~~(Math.random() * 300) + 100,
-            y: 25,
-            color: generateRandomColor(),
-            name: name
-        });
-
+        me = {id: id, color: 'red', name: name};
         // notify server about our data
         socket.emit('set-data', {
             id: me.id,
-            x: me.x,
-            y: me.y,
             name: name,
             color: me.color
         });
